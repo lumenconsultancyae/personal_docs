@@ -1,36 +1,11 @@
-# Personal Webpage — Documentation & Deployment (`personal_docs`)
+# Personal Portfolio Documentation & Deployment (`personal_docs`)
 
-Documentation, architecture specifications, and Docker Compose deployment configuration for **Wilson Guevara's Personal Webpage** ([`lumenconsultancyae/personal-webpage`](https://github.com/lumenconsultancyae/personal-webpage)).
+Companion documentation, Docker Compose orchestration, visual UX audit screenshots, and Behavior-Driven Development (BDD) End-to-End (E2E) browser test suite for [`lumenconsultancyae/personal-webpage`](https://github.com/lumenconsultancyae/personal-webpage).
 
----
+## Repository Contents
 
-## Repository Structure
-
-```text
-personal_docs/
-├── docker-compose.yml       # Local & container orchestration for personal-webpage
-├── README.md                # Documentation index and quick-start guide
-└── docs/
-    ├── ARCHITECTURE.md      # Technical architecture, component hierarchy & state flow
-    └── DEPLOYMENT.md        # Operational deployment runbook & verification checks
-```
-
----
-
-## Quick Start (Docker Compose)
-
-From this directory (`personal_docs/`), build and start the `personal-webpage` container:
-
-```bash
-docker compose up -d --build
-```
-
-Once running, the application is accessible at:
-- **Local URL**: `http://localhost:3005`
-
----
-
-## Documentation Index
-
-- [**Technical Architecture (`docs/ARCHITECTURE.md`)**](docs/ARCHITECTURE.md): High-level architecture, component state transitions, URL hash routing synchronization, and data structures.
-- [**Deployment Runbook (`docs/DEPLOYMENT.md`)**](docs/DEPLOYMENT.md): Step-by-step instructions for deploying, verifying, and rolling back the `personal-webpage` container.
+- [`docker-compose.yml`](./docker-compose.yml): Builds and runs `personal-webpage` locally on `http://localhost:3005` with container healthchecks.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md): Layered frontend architecture, state synchronization matrix, and Mermaid diagrams.
+- [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md): Local Docker Compose deployment and test execution runbooks.
+- [`docs/UX_IMPROVEMENTS.md`](./docs/UX_IMPROVEMENTS.md): Complete UX/UI audit, design token system, and visual Before/After comparison catalog (`docs/screenshots/ux_improvements/before/` and `docs/screenshots/ux_improvements/after/`).
+- [`tests/bdd/`](./tests/bdd/): 3-layer Gherkin BDD E2E test suite (`features/portfolio_ux.feature`, `steps/portfolio_steps.py`, `pages/portfolio_page.py`) and health-polling runner [`scripts/run_bdd_e2e.sh`](./scripts/run_bdd_e2e.sh).

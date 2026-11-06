@@ -1,58 +1,37 @@
-# Operational Deployment Runbook — `personal-webpage`
+# Deployment & Verification Runbook
 
-## 1. Prerequisites
-- Docker Engine 24+ and Docker Compose v2 installed on the host.
-- Sibling repositories cloned in the same workspace directory:
-  - `../personal-webpage` (`https://github.com/lumenconsultancyae/personal-webpage.git` on `main`)
-  - `../personal_docs` (`https://github.com/lumenconsultancyae/personal_docs.git` on `main`)
-- Host TCP port `3005` (or custom `WEB_PORT`) available.
+## 1. Local Deployment via Docker Compose
 
----
+From the `personal_docs` repository (or via the workspace deployment API targeting `personal_docs/docker-compose.yml`):
 
-## 2. Sequential Execution Steps
+```bash
+docker compose -f personal_docs/docker-compose.yml up -d --build personal-webpage
+```
 
-1. Navigate to the `personal_docs` directory:
-   ```bash
-   cd personal_docs
-   ```
-2. Build the production Next.js image and start the container in detached mode:
-   ```bash
-   docker compose up -d --build
-   ```
+- **Live Local URL**: `http://localhost:3005`
+- **Container Name**: `personal-webpage` (`personal-webpage:local`)
+- **Healthcheck**: Polls `http://127.0.0.1:3000/` inside the container every 15s.
 
 ---
 
-## 3. Verification Signals
+## 2. Running Unit & Component Tests (`personal-webpage`)
 
-1. Verify that the `personal-webpage` container is running:
-   ```bash
-   docker compose ps
-   ```
-   Expected status: `Up` with port mapping `0.0.0.0:3005->3000/tcp`.
-2. Verify HTTP `200 OK` response from the Next.js server:
-   ```bash
-   curl -I http://localhost:3005
-   ```
-3. Verify static asset availability (Resume PDF):
-   ```bash
-   curl -I http://localhost:3005/FinalResume.pdf
-   ```
+```bash
+cd ../personal-webpage
+npm run test:coverage
+./node_modules/.bin/tsc --noEmit
+npm run build
+```
 
 ---
 
-## 4. Rollback Plan
+## 3. Running the BDD End-to-End (E2E) Browser Suite (`personal_docs`)
 
-If a build or runtime regression is detected after deployment:
+Ensure the local `personal-webpage` container is running on port `3005`, then execute:
 
-1. Stop and remove the running container:
-   ```bash
-   docker compose down
-   ```
-2. In `../personal-webpage`, check out the previous known-good commit on `main`:
-   ```bash
-   cd ../personal-webpage && git checkout <previous-commit-sha>
-   ```
-3. Rebuild and restart from `personal_docs`:
-   ```bash
-   cd ../personal_docs && docker compose up -d --build
-   ```
+```bash
+cd personal_docs
+bash scripts/run_bdd_e2e.sh
+```
+
+The entrypoint script polls the application health endpoint with an explicit backoff loop before launching `behave features/portfolio_ux.feature` across Desktop (`1440x900`), Tablet (`768x1024`), and Mobile (`390x844`) viewports.

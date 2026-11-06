@@ -1,73 +1,40 @@
-# Technical Architecture — `personal-webpage`
+# System Architecture — Personal Webpage & Portfolio
 
-## A. High-Level Architecture
+## 1. High-Level Architecture
 
-`personal-webpage` is a client-interactive Next.js 15 (App Router) and React 19 single-page portfolio application styled with Tailwind CSS v4, Framer Motion 12, and Material UI (MUI v7). It renders a full-viewport (`100vh`) snap-scrolling experience that transitions between an initial landing hero (`HeaderSplash`) and two distinct content tracks (**Professional** and **Personal**), synchronized bidirectionally with URL hash fragments and an IntersectionObserver-driven floating navigation rail (`FixedNav`).
+The **Personal Webpage** (`lumenconsultancyae/personal-webpage`) is a standalone Next.js 15 & React 19 application structured around clean layered frontend boundaries (`domain`, `infrastructure`, `application`, `components`, `routes`). It runs inside a multi-stage production Node 20 Alpine container orchestrated by `personal_docs/docker-compose.yml`.
 
 ```mermaid
 flowchart TD
-    RootLayout["RootLayout (src/app/layout.tsx)"] --> MainPage["MainPage (src/app/page.tsx)"]
-    MainPage --> HeaderSplash["HeaderSplash (src/components/HeaderSplash.tsx)"]
-    MainPage --> FixedNav["FixedNav (Section Navigation Rail)"]
-    MainPage --> PortfolioTrack["Professional Track (currentPage === 'portfolio')"]
-    MainPage --> PersonalTrack["Personal Track (currentPage === 'personal')"]
-
-    PortfolioTrack --> ProfHighlights["ProfessionalHighlights + Contact"]
-    PortfolioTrack --> Journey["Journey (Work & Education Timelines)"]
-    PortfolioTrack --> Testimonials["Testimonials + Skills Matrix"]
-    PortfolioTrack --> Projects["Projects (Spotlight + GitLab API)"]
-
-    PersonalTrack --> PersHighlights["PersonalHighlights (Lifestyle)"]
-    PersonalTrack --> Traveling["Traveling (Countries Lived)"]
-    PersonalTrack --> Philosophies["Philosophies"]
-    PersonalTrack --> FunFacts["FunFacts"]
-    PersonalTrack --> Gallery["Gallery (Community & Lifestyle Photos)"]
+    Visitor["Browser Client (Desktop / Tablet / Mobile)"] -->|HTTP GET :3005| NextApp["Next.js 15 App Shell (src/app/[[...slug]]/page.tsx)"]
+    NextApp --> Router["React Router v7 (PortfolioApp.tsx)"]
+    Router --> Routes["Lazy-Loaded Route Views (Overview, Journey, Projects, Testimonials, Personal, Contact)"]
+    Routes --> Queries["Application Layer: TanStack Query Hooks & Key Factory (src/application/)"]
+    Routes --> Forms["Schema-Validated Forms: React Hook Form + Zod (src/components/forms/)"]
+    Queries --> Repo["Infrastructure Layer: Portfolio Repository & Seed Store (src/infrastructure/)"]
+    Forms --> Schemas["Domain Layer: Entities, Zod Schemas & XSS Sanitizer (src/domain/)"]
+    Repo --> Schemas
 ```
 
 ---
 
-## B. Phase-by-Phase Technical Breakdown
+## 2. Layered Module Boundaries (`personal-webpage/src/`)
 
-### 1. Initialization & URL Hash Synchronization (`src/app/page.tsx`)
-- On mount and on `window` `hashchange` events, `MainPage` inspects `window.location.hash`.
-- It iterates through the `pages` dictionary (`portfolio` and `personal` section arrays) to check whether any section's `id` matches the active hash:
-  - **Match found**: Sets `currentPage` to the corresponding track key (`"portfolio"` or `"personal"`), updates the router hash via `router.push(#<targetId>)`, and schedules a `requestAnimationFrame` callback to smoothly scroll the target DOM element into view.
-  - **Empty or unrecognized hash**: Resets `currentPage` to `""`, sliding the `HeaderSplash` hero banner back into the viewport (`y: 0`).
-
-### 2. Viewport Observation & Floating Navigation (`FixedNav`)
-- When `currentPage` is non-empty, `AnimatePresence` mounts the `FixedNav` right-hand navigation rail.
-- `FixedNav` attaches an `IntersectionObserver` (`rootMargin: "-40% 0px -40% 0px"`) to all section DOM nodes belonging to the active track.
-- Whenever a section intersects the center band of the viewport, `activeId` updates and triggers a 2-second `scrolling` indicator that reveals the active section's text label alongside its enlarged navigation dot.
-
-### 3. Dynamic External Repository Hydration (`src/components/Projects.tsx`)
-- Renders curated spotlight project cards (`Interactive Desktop & Stocks Platform`, `RGApps & GamePlan Platform`, `DDDCompiler`, `CodingGame Algorithms`) immediately on initial render.
-- In a client `useEffect` hook, queries `https://gitlab.com/api/v4/users/wilsonr990/projects?simple=true&order_by=last_activity_at`.
-- Deduplicates returned repositories against `spotlightProjects` by normalizing `web_url` to lowercase before appending additional public repositories to the grid.
-- If the network request fails or returns a non-200 status, the component logs the error and preserves the curated spotlight cards without UI disruption.
+| Layer | Directory | Responsibility & Inward Dependency Rule |
+| :--- | :--- | :--- |
+| **Domain** | `src/domain/` | Pure TypeScript interfaces (`models.ts`), shared `zod` validation schemas, and XSS sanitizer (`schemas.ts`). Imports nothing outward. |
+| **Infrastructure** | `src/infrastructure/` | In-memory + `localStorage` data repository (`portfolioApi.ts`) and curated career/project seed datasets (`seedData.ts`, `seedCollections.ts`). Depends only on `src/domain/`. |
+| **Application** | `src/application/` | Deterministic TanStack Query Key Factory (`queryKeys.ts`) and query/mutation hooks with optimistic updates and rollback (`usePortfolioQueries.ts`). Depends on `domain` and `infrastructure`. |
+| **UI Primitives & Forms** | `src/components/ui/`, `src/components/forms/` | Reusable WAI-ARIA primitives (`AppShell.tsx`, `ToastProvider.tsx`, `ConfirmDialog.tsx`, `CommandPalette.tsx`, `PaginationControls.tsx`, `ErrorBoundary.tsx`) and `react-hook-form` panels (`ProjectFormPanel.tsx`, `TestimonialFormPanel.tsx`, `ContactInquiryForm.tsx`). |
+| **Declarative Routes** | `src/routes/` | Code-split route views (`OverviewRoute.tsx`, `JourneyRoute.tsx`, `ProjectsRoute.tsx`, `TestimonialsRoute.tsx`, `PersonalRoute.tsx`, `ContactRoute.tsx`) synchronizing URL search parameters via `useSearchParams`. |
 
 ---
 
-## C. Runtime State & Payload Structures
+## 3. Verification & Testing Architecture
 
-### Section Definition Schema (`src/app/page.tsx`)
-
-```json
-{
-  "id": "professionalHighlights",
-  "label": "Highlights",
-  "title": "Professional Highlights",
-  "subtitle": "My CV"
-}
-```
-
-### Timeline Item Schema (`src/components/Journey.tsx`)
-
-```json
-{
-  "title": "Senior Data Engineer",
-  "company": "Cybersecurity Company (NDA)",
-  "location": "Dubai, UAE",
-  "duration": "Oct 2023 – Present",
-  "details": "Led end-to-end ML inference pipelines (Triton Inference Server, PyTorch, Whisper) optimizing GPU utilization, full-stack internal support tooling, and multi-team Jira sprint roadmaps."
-}
-```
+1. **In-Process Unit & Component Tests (`personal-webpage/src/__tests__/`)**:
+   - Executed via **Vitest** (`npm run test:coverage`) with `@testing-library/react` and `@vitest/coverage-v8`.
+   - Verifies Zod validation schemas, XSS sanitization, zero native browser dialogs (`alert`/`confirm`/`prompt`), `< 500` lines per file, TanStack Query optimistic mutations & error rollbacks, WAI-ARIA primitives, and React Router URL search-param synchronization.
+2. **End-to-End BDD Browser Acceptance Suite (`personal_docs/tests/bdd/`)**:
+   - Executed via **Behave** + headless **Chromium WebDriver** (`bash scripts/run_bdd_e2e.sh`).
+   - Strictly separated into declarative Gherkin features (`features/portfolio_ux.feature`), reusable step definitions (`steps/portfolio_steps.py`), and a driver-encapsulated Page Object (`pages/portfolio_page.py`).
