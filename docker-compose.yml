@@ -1,0 +1,14 @@
+services:
+  personal-webpage:
+    build:
+      context: ../personal-webpage
+      dockerfile: Dockerfile
+    image: personal-webpage:local
+    container_name: personal-webpage
+    ports:
+      - "${WEB_PORT:-3005}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    restart: unless-stopped
